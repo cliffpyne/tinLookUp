@@ -55,7 +55,7 @@ export const SHEETS: SheetConfig[] = [
     id: "1HJHu0nI_KRvkeMMI4cFYhK0IcqijCh-v",
     tab: "DOUBLE TITLE",
     plateCol: 1, // B
-    tinCol: 5,   // F (hyphenated)
+    tinCol: 11,  // L (new-owner TIN; F holds the operator's own TIN)
   },
   {
     name: "GRACE",
