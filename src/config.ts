@@ -35,12 +35,34 @@ export interface SheetConfig {
  * Column indexes are 0-based (A=0, B=1, …).
  */
 export const SHEETS: SheetConfig[] = [
+  // Four tabs of the same xlsx file — different column layouts each.
   {
     name: "NEEMA",
     id: "1HJHu0nI_KRvkeMMI4cFYhK0IcqijCh-v",
     tab: "NEEMA",
     plateCol: 1, // B
     tinCol: 8,   // I
+  },
+  {
+    name: "HALIMA",
+    id: "1HJHu0nI_KRvkeMMI4cFYhK0IcqijCh-v",
+    tab: "HALIMA",
+    plateCol: 1, // B
+    tinCol: 5,   // F
+  },
+  {
+    name: "DOUBLE TITLE",
+    id: "1HJHu0nI_KRvkeMMI4cFYhK0IcqijCh-v",
+    tab: "DOUBLE TITLE",
+    plateCol: 1, // B
+    tinCol: 5,   // F (hyphenated)
+  },
+  {
+    name: "GRACE",
+    id: "1HJHu0nI_KRvkeMMI4cFYhK0IcqijCh-v",
+    tab: "GRACE",
+    plateCol: 1, // B
+    tinCol: 6,   // G
   },
   {
     name: "CUSTOMER TIN AND CARD DATABASE",

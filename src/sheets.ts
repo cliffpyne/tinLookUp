@@ -119,31 +119,41 @@ async function fetchSheetsApi(s: SheetConfig): Promise<unknown[][] | null> {
   }
 }
 
-/** Download via Drive (works for uploaded xlsx as well as native Sheets). */
-async function fetchDrive(s: SheetConfig): Promise<unknown[][]> {
+/** Per-file workbook cache so multiple configured tabs of the same xlsx
+ *  don't trigger N Drive downloads — fetch once, parse tabs as needed. */
+const workbookCache = new Map<string, { wb: XLSX.WorkBook; loadedAt: number }>();
+
+async function fetchWorkbook(fileId: string): Promise<XLSX.WorkBook> {
+  const hit = workbookCache.get(fileId);
+  if (hit && Date.now() - hit.loadedAt < CACHE_TTL_MS) return hit.wb;
   const authClient = (await getAuth()) as never;
   const drive = google.drive({ version: "v3", auth: authClient });
   const meta = await drive.files.get({
-    fileId: s.id,
-    fields: "id,name,mimeType",
-    supportsAllDrives: true,
+    fileId, fields: "id,name,mimeType", supportsAllDrives: true,
   });
   const mime = meta.data.mimeType ?? "";
   let buf: Buffer;
   if (mime === "application/vnd.google-apps.spreadsheet") {
     const res = await drive.files.export(
-      { fileId: s.id, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      { fileId, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
       { responseType: "arraybuffer" },
     );
     buf = Buffer.from(res.data as ArrayBuffer);
   } else {
     const res = await drive.files.get(
-      { fileId: s.id, alt: "media", supportsAllDrives: true },
+      { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "arraybuffer" },
     );
     buf = Buffer.from(res.data as ArrayBuffer);
   }
   const wb = XLSX.read(buf, { type: "buffer" });
+  workbookCache.set(fileId, { wb, loadedAt: Date.now() });
+  return wb;
+}
+
+/** Download via Drive (works for uploaded xlsx as well as native Sheets). */
+async function fetchDrive(s: SheetConfig): Promise<unknown[][]> {
+  const wb = await fetchWorkbook(s.id);
   // Only the configured tab — column layouts differ between tabs, so reading
   // them all would mis-map plate/TIN columns. Fall back to the first tab if
   // the named tab is missing.
