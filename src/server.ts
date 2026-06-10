@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import fastifyMultipart from "@fastify/multipart";
 import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
 import { config } from "./config.js";
 import { lookupPlate, normPlate } from "./sheets.js";
 
@@ -110,16 +111,19 @@ export async function buildServer() {
       });
     }
 
-    // Embed the camera photo into a single-page PDF sized to the image.
+    // Phone-camera JPEGs carry an EXIF orientation tag that PDF viewers ignore,
+    // so a portrait photo lands rotated 90°/180° in the PDF. Run the bytes
+    // through sharp.rotate() first: that bakes the EXIF orientation into the
+    // pixels and strips the tag, so what you see in the PDF is what was shot.
+    // Re-encode as JPEG with quality 90 — small enough for WhatsApp share,
+    // sharp enough for receipt scans.
+    const normalised = await sharp(imgBuf, { failOn: "none" })
+      .rotate()
+      .jpeg({ quality: 90, mozjpeg: true })
+      .toBuffer();
+
     const pdf = await PDFDocument.create();
-    let img;
-    if (imgMime.includes("png")) {
-      img = await pdf.embedPng(imgBuf);
-    } else {
-      // pdf-lib only does PNG/JPEG natively. Browsers from phones tend to
-      // capture JPEG by default; treat anything non-PNG as JPEG.
-      img = await pdf.embedJpg(imgBuf);
-    }
+    const img = await pdf.embedJpg(normalised);
     const page = pdf.addPage([img.width, img.height]);
     page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
     const bytes = await pdf.save();
