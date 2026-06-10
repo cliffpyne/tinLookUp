@@ -352,37 +352,56 @@
     // Download.
     downloadBtn.addEventListener("click", () => {
       if (!lastPdfBlob) return;
+      saveToDevice();
+    });
+
+    // Save the PDF to the phone's Downloads. Used both by the Download button
+    // and as the fallback when WhatsApp file-sharing isn't permitted.
+    function saveToDevice() {
       const a = document.createElement("a");
       a.href = URL.createObjectURL(lastPdfBlob);
       a.download = lastFilename;
       document.body.appendChild(a);
       a.click();
-      a.remove();
-    });
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 100);
+    }
 
-    // Share to WhatsApp. Uses Web Share API where available (Android Chrome,
-    // iOS Safari). Falls back to wa.me with text-only when sharing files
-    // isn't supported.
+    // Share to WhatsApp.
+    //
+    // Path 1 (best): Web Share API with a file. Works on modern Android Chrome
+    //                and iOS Safari 15+.
+    // Path 2 (fallback): some phones (older Android, Samsung Internet, in-app
+    //                browsers, ad-blocker browsers) deny file shares with a
+    //                "permission not allowed" error. In that case we save the
+    //                PDF to Downloads and bounce the user into WhatsApp so
+    //                they can attach it manually — 2 taps instead of failure.
     shareBtn.addEventListener("click", async () => {
       if (!lastPdfBlob) return;
       const file = new File([lastPdfBlob], lastFilename, { type: "application/pdf" });
-      const text = lastFilename;
-      try {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: lastFilename, text });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: lastFilename });
           shareStatus.textContent = "Shared.";
           shareStatus.className = "status ok";
           return;
+        } catch (e) {
+          if (e && e.name === "AbortError") {
+            shareStatus.textContent = "Share canceled.";
+            shareStatus.className = "status muted";
+            return;
+          }
+          // "NotAllowedError" / permission denied — fall through to download path.
         }
-        // Fallback: open wa.me with the filename as the text.
-        window.location.href = "https://wa.me/?text=" + encodeURIComponent(text);
-        shareStatus.textContent =
-          "Your browser can't share files directly — download the PDF and attach it in WhatsApp.";
-        shareStatus.className = "status muted";
-      } catch (e) {
-        shareStatus.textContent = "Share canceled or failed: " + e.message;
-        shareStatus.className = "status err";
       }
+
+      // Download path: drop the PDF into the phone's Downloads, then open WhatsApp.
+      saveToDevice();
+      shareStatus.innerHTML =
+        'PDF saved to <b>Downloads</b>. <a href="https://wa.me/" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">Open WhatsApp</a> and attach <code style="font-size:12px">' +
+        lastFilename +
+        "</code> from your file picker.";
+      shareStatus.className = "status muted";
     });
 
     if ("serviceWorker" in navigator) {
