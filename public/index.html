@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f766e" />
+  <title>TIN Scan</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #111a2c;
+      --ink: #e6edf7;
+      --muted: #98a5bc;
+      --accent: #14b8a6;
+      --accent-hover: #0d9488;
+      --err: #f87171;
+      --ok: #34d399;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+    }
+    header {
+      padding: 18px 0 12px;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin: 12px 0;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="number"] {
+      width: 100%;
+      padding: 14px 14px;
+      border-radius: 10px;
+      border: 1px solid #233148;
+      background: #0e1626;
+      color: var(--ink);
+      font-size: 17px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--accent); }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    .status {
+      font-size: 13px;
+      margin-top: 6px;
+      min-height: 18px;
+    }
+    .status.ok    { color: var(--ok); }
+    .status.err   { color: var(--err); }
+    .status.muted { color: var(--muted); }
+
+    .photo-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s, transform 0.05s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--accent);
+      color: #04221d;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: #1e293b;
+      color: var(--ink);
+    }
+    .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    .preview {
+      width: 100%;
+      max-height: 240px;
+      object-fit: contain;
+      border-radius: 10px;
+      margin-top: 10px;
+      background: #0e1626;
+      display: none;
+    }
+    .preview.show { display: block; }
+
+    .results {
+      display: none;
+    }
+    .results.show { display: block; }
+    .results .filename {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 14px;
+      padding: 10px 12px;
+      background: #0e1626;
+      border-radius: 8px;
+      word-break: break-all;
+      margin-bottom: 12px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    #file-input { display: none; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 12px 0 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TIN Scan</h1>
+    <p>Plate → TIN → PDF</p>
+  </header>
+
+  <form id="scan-form" autocomplete="off" novalidate>
+    <div class="card">
+      <div class="field">
+        <label for="plate">Plate Number</label>
+        <input id="plate" name="plate" type="text" inputmode="text" autocapitalize="characters"
+               placeholder="MC798FCE" required />
+        <div id="plate-status" class="status muted">Type a plate, then tap outside to look up.</div>
+      </div>
+
+      <div class="field">
+        <label for="tin">TIN Number</label>
+        <input id="tin" name="tin" type="text" inputmode="numeric" placeholder="auto-fills" required />
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label for="date">Date of Sales</label>
+          <input id="date" name="date" type="text" inputmode="numeric"
+                 placeholder="DD/MM/YYYY" required />
+        </div>
+        <div class="field">
+          <label for="amount">Amount of Sales</label>
+          <input id="amount" name="amount" type="number" inputmode="numeric" min="0" step="1"
+                 placeholder="1250000" required />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Document Photo</label>
+      <div class="photo-row">
+        <button type="button" id="take-photo" class="btn btn-primary">📷  Take Photo</button>
+      </div>
+      <input id="file-input" type="file" accept="image/*" capture="environment" />
+      <img id="preview" class="preview" alt="" />
+      <div id="photo-status" class="status muted">No photo yet.</div>
+    </div>
+
+    <div class="card">
+      <button type="submit" id="generate" class="btn btn-primary">Generate PDF</button>
+      <div id="gen-status" class="status muted">Fill all fields and a photo, then generate.</div>
+    </div>
+  </form>
+
+  <div id="results" class="card results">
+    <label>Generated PDF</label>
+    <div class="filename" id="result-filename"></div>
+    <div class="grid-2">
+      <button type="button" id="share" class="btn btn-primary">Share to WhatsApp</button>
+      <button type="button" id="download" class="btn btn-secondary">Download</button>
+    </div>
+    <div id="share-status" class="status muted"></div>
+  </div>
+
+  <footer>v0.3 · sms-sync-service@lmp-sms-sync</footer>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const plateEl = $("plate");
+    const tinEl = $("tin");
+    const dateEl = $("date");
+    const amountEl = $("amount");
+    const fileInput = $("file-input");
+    const takePhotoBtn = $("take-photo");
+    const previewEl = $("preview");
+    const photoStatus = $("photo-status");
+    const plateStatus = $("plate-status");
+    const genStatus = $("gen-status");
+    const resultsBlock = $("results");
+    const resultFilename = $("result-filename");
+    const shareBtn = $("share");
+    const downloadBtn = $("download");
+    const shareStatus = $("share-status");
+    const form = $("scan-form");
+    const generateBtn = $("generate");
+
+    let photoFile = null;
+    let lastPdfBlob = null;
+    let lastFilename = "";
+
+    // Auto-uppercase plate as the user types.
+    plateEl.addEventListener("input", () => {
+      const pos = plateEl.selectionStart;
+      plateEl.value = plateEl.value.toUpperCase();
+      plateEl.setSelectionRange(pos, pos);
+    });
+
+    // Friendly date helper: type "21032026" → "21/03/2026".
+    dateEl.addEventListener("input", () => {
+      let d = dateEl.value.replace(/\D+/g, "").slice(0, 8);
+      if (d.length >= 5) d = d.slice(0, 2) + "/" + d.slice(2, 4) + "/" + d.slice(4);
+      else if (d.length >= 3) d = d.slice(0, 2) + "/" + d.slice(2);
+      dateEl.value = d;
+    });
+
+    // Lookup TIN when plate blurs or user presses Enter.
+    async function doLookup() {
+      const plate = plateEl.value.trim().toUpperCase().replace(/[\s\-_]+/g, "");
+      if (!plate) {
+        plateStatus.textContent = "Plate is empty.";
+        plateStatus.className = "status muted";
+        return;
+      }
+      plateStatus.textContent = "Looking up…";
+      plateStatus.className = "status muted";
+      try {
+        const res = await fetch("/api/lookup?plate=" + encodeURIComponent(plate));
+        const data = await res.json();
+        if (res.ok && data.tin) {
+          tinEl.value = data.tin;
+          plateStatus.textContent = "Found in " + (data.source || "sheets");
+          plateStatus.className = "status ok";
+        } else {
+          tinEl.value = "";
+          plateStatus.textContent = data.error || "Not found.";
+          plateStatus.className = "status err";
+        }
+      } catch (e) {
+        plateStatus.textContent = "Lookup failed: " + e.message;
+        plateStatus.className = "status err";
+      }
+    }
+    plateEl.addEventListener("change", doLookup);
+    plateEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); doLookup(); }
+    });
+
+    // Photo capture.
+    takePhotoBtn.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      photoFile = f;
+      previewEl.src = URL.createObjectURL(f);
+      previewEl.classList.add("show");
+      photoStatus.textContent = f.name + "  (" + Math.round(f.size / 1024) + " KB)";
+      photoStatus.className = "status ok";
+    });
+
+    // Generate PDF.
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const plate = plateEl.value.trim().toUpperCase().replace(/[\s\-_]+/g, "");
+      const tin = (tinEl.value || "").replace(/\D+/g, "");
+      const date = dateEl.value.trim();
+      const amount = (amountEl.value || "").replace(/\D+/g, "");
+      if (!photoFile) {
+        genStatus.textContent = "Take a photo first.";
+        genStatus.className = "status err";
+        return;
+      }
+      if (!plate || !tin || !date || !amount) {
+        genStatus.textContent = "All fields are required.";
+        genStatus.className = "status err";
+        return;
+      }
+      generateBtn.disabled = true;
+      genStatus.textContent = "Generating…";
+      genStatus.className = "status muted";
+
+      const fd = new FormData();
+      fd.append("photo", photoFile, photoFile.name);
+      fd.append("plate", plate);
+      fd.append("tin", tin);
+      fd.append("date", date);
+      fd.append("amount", amount);
+      try {
+        const res = await fetch("/api/generate", { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Unknown error" }));
+          throw new Error(err.error || ("HTTP " + res.status));
+        }
+        // Pull the filename out of Content-Disposition.
+        const cd = res.headers.get("Content-Disposition") || "";
+        const m = cd.match(/filename="?([^";]+)"?/);
+        const filename = m ? m[1] : "tin-scan.pdf";
+        lastPdfBlob = await res.blob();
+        lastFilename = filename;
+        resultFilename.textContent = filename;
+        resultsBlock.classList.add("show");
+        genStatus.textContent = "Ready. Share or download below.";
+        genStatus.className = "status ok";
+        resultsBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch (err) {
+        genStatus.textContent = "Failed: " + err.message;
+        genStatus.className = "status err";
+      } finally {
+        generateBtn.disabled = false;
+      }
+    });
+
+    // Download.
+    downloadBtn.addEventListener("click", () => {
+      if (!lastPdfBlob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(lastPdfBlob);
+      a.download = lastFilename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+
+    // Share to WhatsApp. Uses Web Share API where available (Android Chrome,
+    // iOS Safari). Falls back to wa.me with text-only when sharing files
+    // isn't supported.
+    shareBtn.addEventListener("click", async () => {
+      if (!lastPdfBlob) return;
+      const file = new File([lastPdfBlob], lastFilename, { type: "application/pdf" });
+      const text = lastFilename;
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: lastFilename, text });
+          shareStatus.textContent = "Shared.";
+          shareStatus.className = "status ok";
+          return;
+        }
+        // Fallback: open wa.me with the filename as the text.
+        window.location.href = "https://wa.me/?text=" + encodeURIComponent(text);
+        shareStatus.textContent =
+          "Your browser can't share files directly — download the PDF and attach it in WhatsApp.";
+        shareStatus.className = "status muted";
+      } catch (e) {
+        shareStatus.textContent = "Share canceled or failed: " + e.message;
+        shareStatus.className = "status err";
+      }
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => { /* fine */ });
+      });
+    }
+  </script>
+</body>
+</html>

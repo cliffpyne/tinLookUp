@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: tin-scan
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/main.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: GOOGLE_CREDENTIALS_B64
+        sync: false   # set by the Render dashboard / API as a secret

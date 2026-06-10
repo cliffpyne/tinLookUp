@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+chrome-profile-lookup
+logs
+queue.json
+google-service-account.json
