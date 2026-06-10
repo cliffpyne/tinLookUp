@@ -63,4 +63,11 @@ export const SHEETS: SheetConfig[] = [
     plateCol: 0, // A
     tinCol: 6,   // G
   },
+  {
+    name: "TIN NUMBER CUSTOMER (rJD)",
+    id: "1rJDv9YVTj8_oT31Cja5YAcVjlJGNr7pQ",
+    tab: "Sheet1",
+    plateCol: 0, // A
+    tinCol: 8,   // I
+  },
 ];
