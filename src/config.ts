@@ -92,4 +92,11 @@ export const SHEETS: SheetConfig[] = [
     plateCol: 0, // A
     tinCol: 8,   // I
   },
+  {
+    name: "Vehicle Data (ELIZA NEW)",
+    id: "11AhYVKEG81lZneY6JZWcir3fUiGy22mN",
+    tab: "Vehicle Data",
+    plateCol: 0, // A
+    tinCol: 4,   // E
+  },
 ];
